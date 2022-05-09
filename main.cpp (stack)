@@ -1,0 +1,171 @@
+#include <iostream>
+#include <fstream>
+#include "cgi.h"
+#include<string>
+#include<stack>
+#include<stdlib.h>
+using namespace std;
+struct elem {
+	int value;
+	int num;
+	elem* next = nullptr;
+};
+void push(elem*& stack, int value1, int num)
+{
+	elem* newel = new elem;
+	newel->value = value1;
+	newel->num = num;
+	if (!stack)
+	{
+		stack = newel;
+	}
+	else
+	{
+		newel->next = stack;
+		stack = newel;
+	}
+}
+bool pop(elem*& stack, int& value, int& num)
+{
+	if (!stack) return false;
+	elem* rem = stack;
+	value = stack->value;
+	num = stack->num;
+	stack = stack->next;
+	delete rem;
+	return true;
+}
+void clear(elem*& stack)
+{
+	while (stack)
+	{
+		elem* rem = stack;
+		stack = stack->next;
+		delete rem;
+	}
+}
+void output(char* math, int i) {
+	printf("номер места где находится ошибочная скобка - %d\n", i + 1);
+	/*for (int j = 0; math[j]; j++) {
+		if (j == i) {
+			cout << "\x1b[31m" << math[j] << "\x1b[0m";
+		}
+		else {
+			cout << math[j];
+		}
+	}*/
+}
+
+
+void show_content();
+void show_menu();
+void show_header();
+
+void main() {
+
+	cout << "Content-type: text/html; charset=Windows-1251\n\n";
+	ifstream f("_index");
+	if (f.is_open())
+	{
+		auto sz = 65536;
+		auto buf = new char[sz];
+		while (!f.eof())
+		{
+			f.getline(buf, sz);
+			if (strcmp(buf, "<!--#CONTENT#-->") == 0)
+			{
+				show_content();
+			}
+			else if (!strcmp(buf, "<!--#MENU#-->"))
+			{
+				show_menu();
+			}
+			else if (!strcmp(buf, "<!--#HEADER#-->"))
+			{
+				show_header();
+			}
+			cout << buf;
+		}
+		delete[] buf;
+		f.close();
+	}
+	else
+	{
+		cout << "mistake";
+	}
+}
+void show_header()
+{
+	cout << "Главная страница";
+}
+void show_content()
+{
+	cout << "<form method='get' action='test.cgi'>";
+	cout << "Введите математическое выражение: <input type='text' name='imya' maxlength='50' size='50'><br>";
+	cout << "<input type='submit' value='Отправить'>";
+	cout << "</form>";
+#ifndef _DEBUG
+	char* data = nullptr;
+	get_form_data(data);
+#else
+	const char* data = "imya=Sergey&email=a%40b.ru";
+#endif
+	if (data && strlen(data) > 0)
+	{
+		//cout << "<div>" << data << "</div>";
+		char* value = nullptr;
+		get_param_value(value, "imya", data);
+		elem* stack = nullptr;
+		char close;
+		int value1;
+		int num;
+		int errnum;
+		for (int i = 0; value[i]; i++) {
+			if (value[i] == '(' || value[i] == '[' || value[i] == '{' || value[i] == '<') {
+				push(stack, value[i], i);
+			}
+			else if (value[i] == ')' || value[i] == ']' || value[i] == '}' || value[i] == '>') {
+				close = value[i];
+				if (!pop(stack, value1, num)) {
+					output(value, i);
+					exit(0);
+				}
+				if ((value1 == '(' && close != ')') || (value1 == '[' && close != ']') || (value1 == '{' && close != '}') || (value1 == '<' && close != '>')) {
+					output(value, i);
+					exit(0);
+				}
+			}
+		}
+		if (!pop(stack, value1, num)) {
+			cout << "Cтрока содержит корректное выражение";
+		}
+		else {
+			output(value, num);
+		}
+		clear(stack);
+		//cout << "<div>" << value << "</div>";
+		//get_param_value(value, "email", data);
+		//cout << "<div>" << value << "</div>";
+	}
+	delete[] data;
+}
+void show_menu()
+{
+	ifstream f("menu");
+	if (f.is_open())
+	{
+		auto sz = 1024;
+		auto buf = new char[sz];
+		while (!f.eof())
+		{
+			f.getline(buf, sz);
+			char* name;
+			char* addrr = strtok_s(buf, " ", &name);
+			cout << "<div class='menu-item'>"
+				"<a href='" << addrr << "'>" <<
+				name << "</a>"
+				"</div>";
+		}
+	}
+	f.close();
+}
